@@ -5,7 +5,7 @@ import { QrSignerContextProvider } from 'providers/QrSignerContext';
 import { ScannerContextProvider } from 'providers/ScannerContext';
 import { SigningContextProvider } from 'providers/SigningContext';
 import React, { useEffect } from 'react';
-import { AppState, StatusBar, StyleProp, View } from 'react-native';
+import { AppState, Platform, StatusBar, StyleProp, View } from 'react-native';
 import { ThemeContext } from 'providers/contexts';
 import { THEME_PRESET } from 'styles/themes';
 import { ToastProvider } from 'react-native-toast-notifications';
@@ -19,6 +19,7 @@ import SplashScreen from 'react-native-splash-screen';
 import { LoadingScreen } from 'screens/LoadingScreen';
 import { ColorMap } from 'styles/color';
 import { AutoLockState } from 'utils/autoLock';
+import { checkAppInstalledFromAPK } from 'utils/installation';
 import useStoreBackgroundService from 'hooks/store/useStoreBackgroundService';
 import { TOAST_DURATION } from 'constants/index';
 import AppNavigator from './AppNavigator';
@@ -152,6 +153,9 @@ export const AppNew = () => {
       SplashScreen.hide();
     }, 100);
 
+    if (Platform.OS === 'android') {
+      checkAppInstalledFromAPK();
+    }
     // if (buildNumber === 1) {
     // Set default value on the first time install
     // const buildNumberInt = parseInt(getBuildNumber(), 10);
