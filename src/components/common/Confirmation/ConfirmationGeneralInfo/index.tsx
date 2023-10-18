@@ -9,6 +9,7 @@ import createStyle from './styles';
 import { ImageLogosMap } from 'assets/logo';
 import { isWalletConnectRequest } from '@subwallet/extension-base/services/wallet-connect-service/helpers';
 import { SVGImages } from 'assets/index';
+import { SvgUri } from 'react-native-svg';
 
 interface Props {
   request: ConfirmationRequestBase;
@@ -18,24 +19,28 @@ interface Props {
 const ConfirmationGeneralInfo: React.FC<Props> = (props: Props) => {
   const { request, gap = 0 } = props;
   const domain = getDomainFromUrl(request.url);
-  const [rightLogo, setRightLogo] = useState(`https://icons.duckduckgo.com/ip2/${domain}.ico`);
+  const rightLogo = `https://icon.horse/icon/${domain}`;
+  const [isFirstLoadFailed, setIsFirstLoadFailed] = useState(false);
   const isWCRequest = useMemo(() => isWalletConnectRequest(request.id), [request.id]);
   const theme = useSubWalletTheme().swThemes;
   const styles = useMemo(() => createStyle(theme, gap), [theme, gap]);
 
   const onLoadImageError = useCallback(() => {
-    if (rightLogo.includes('.ico')) {
-      setRightLogo(`https://icons.duckduckgo.com/ip2/${domain}.png`);
-      return;
-    }
-  }, [domain, rightLogo]);
+    setIsFirstLoadFailed(true);
+  }, []);
 
   return (
     <View style={styles.container}>
       <DualLogo
         leftLogo={<Image shape={'squircle'} src={ImageLogosMap.subwallet} squircleSize={56} />}
         linkIcon={isWCRequest ? <SVGImages.WalletConnect width={24} height={24} color={theme.colorWhite} /> : undefined}
-        rightLogo={<Image shape="squircle" src={{ uri: rightLogo }} squircleSize={56} onError={onLoadImageError} />}
+        rightLogo={
+          !isFirstLoadFailed ? (
+            <Image shape="squircle" src={{ uri: rightLogo }} squircleSize={56} onError={onLoadImageError} />
+          ) : (
+            <SvgUri uri={rightLogo} />
+          )
+        }
       />
       <Text style={styles.text}>{domain}</Text>
     </View>
