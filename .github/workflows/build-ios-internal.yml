@@ -1,0 +1,113 @@
+name: Internal builds
+
+on:
+  push:
+    branches: [ "issue-1056" ]
+  pull_request:
+    branches: [ "issue-1056" ]
+
+jobs:
+  build:
+    name: iOS builds
+    runs-on: macos-latest
+    env:
+      GH_PAT: ${{ secrets.GH_PAT }}
+      GH_RELEASE_GITHUB_API_TOKEN: ${{ secrets.GH_PAT }}
+      KS_PASSWORD: ${{ secrets.KS_PASSWORD }}
+      NEXTCLOUD_CONFIG: ${{ secrets.NEXTCLOUD_CONFIG }}
+      DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+      COMMIT_MESSAGE: ${{ github.event.pull_request.title }}
+      REF_NAME: ${{ github.ref_name }}
+      TRANSAK_API_KEY: ${{ secrets.TRANSAK_API_KEY }}
+      COINBASE_PAY_ID: ${{ secrets.COINBASE_PAY_ID }}
+      BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+      P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+      BUILD_PROVISION_PROFILE_BASE64: ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      FB_APP_ID: ${{ secrets.FB_APP_ID }}
+      CREDENTIAL_FILE_CONTENT: ${{ secrets.CREDENTIAL_FILE_CONTENT }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GH_PAT }}
+
+    - name: Add APP ENV
+      run: |
+            cp .env.development.example .env.production
+            if [ -f .env.production ]; then
+              sed -i '' "s/^TRANSAK_API_KEY=.*/TRANSAK_API_KEY=$TRANSAK_API_KEY/" .env.production
+              sed -i '' "s/^COINBASE_PAY_ID=.*/COINBASE_PAY_ID=$COINBASE_PAY_ID/" .env.production
+            else
+              echo "TRANSAK_API_KEY=$TRANSAK_API_KEY" >> .env.production
+              echo "COINBASE_PAY_ID=$COINBASE_PAY_ID" >> .env.production
+            fi
+
+    # - name: Get yarn cache directory path
+    #   id: yarn-cache-dir-path
+    #   run: echo "::set-output name=dir::$(yarn cache dir)"
+
+    # - name: Restore node_modules from cache
+    #   uses: actions/cache@v3.3.2
+    #   id: yarn-cache
+    #   with:
+    #     path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+    #     key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+    #     restore-keys: |
+    #       ${{ runner.os }}-yarn-
+
+    # - name: Install dependencies
+    #   run: yarn install --frozen-lockfile --network-timeout 300000
+
+    # - name: Autocheck
+    #   run: node ./scripts/autocheck.mjs
+
+    # - name: Setup Ruby (bundle) Environment
+    #   uses: ruby/setup-ruby@v1.156.0
+    #   with:
+    #       ruby-version: 2.6
+    #       bundler-cache: true
+
+    # - name: Restore Pods Cache
+    #   uses: actions/cache@v3.3.2
+    #   with:
+    #       path: |
+    #         ios/Pods
+    #         ~/Library/Caches/CocoaPods
+    #         ~/.cocoapods
+    #       key: ${{ runner.os }}-pods-${{ hashFiles('ios/Podfile.lock') }}
+    #       restore-keys: |
+    #         ${{ runner.os }}-pods-
+
+    # - name: Install Pods
+    #   run: cd ios && pod install --repo-update && cd ..
+
+    - name: iOS Build Action
+      uses: yukiarrr/ios-build-action@v1.11.0
+      with:
+        project-path: ios/SubWalletMobile.xcodeproj
+        # for development
+        export-method: 'ad-hoc'
+        p12-base64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+        certificate-password: ${{ secrets.P12_PASSWORD }}
+        mobileprovision-base64: PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPCFET0NUWVBFIHBsaXN0IFBVQkxJQyAiLS8vQXBwbGUvL0RURCBQTElTVCAxLjAvL0VOIiAiaHR0cDovL3d3dy5hcHBsZS5jb20vRFREcy9Qcm9wZXJ0eUxpc3QtMS4wLmR0ZCI+CjxwbGlzdCB2ZXJzaW9uPSIxLjAiPgo8ZGljdD4KICAgIDxrZXk+bWV0aG9kPC9rZXk+CiAgICA8c3RyaW5nPmFkLWhvYzwvc3RyaW5nPgogICAgPGtleT50ZWFtSUQ8L2tleT4KICAgIDxzdHJpbmc+WlVaN1QzR1FNVDwvc3RyaW5nPgogICAgPGtleT5jb21waWxlQml0Y29kZTwva2V5PgogICAgPGZhbHNlLz4KICAgIDxrZXk+cHJvdmlzaW9uaW5nUHJvZmlsZXM8L2tleT4KICAgIDxkaWN0PgogICAgICAgIDxrZXk+YXBwLnN1YndhbGxldC5tb2JpbGU8L2tleT4KICAgICAgICA8c3RyaW5nPkFkIEhvYyBEaXN0cmlidXRpb248L3N0cmluZz4KICAgIDwvZGljdD4KPC9kaWN0Pgo8L3BsaXN0Pg==
+        code-signing-identity: 'Apple Distribution: CDM SOFTWARE DEVELOPMENT COMPANY LIMITED (ZUZ7T3GQMT)'
+        team-id: ${{ secrets.APPLE_TEAM_ID }}
+        workspace-path: ios/SubWalletMobile.xcworkspace
+        scheme: SubWalletMobile-Production
+
+    - name: Upload build file
+      uses: wzieba/Firebase-Distribution-Github-Action@v1
+      with:
+        appId: $FB_APP_ID
+        serviceCredentialsFileContent: $CREDENTIAL_FILE_CONTENT
+        groups: subwallet-team
+        file: output.ipa
+
+    # - name: 'Upload app to TestFlight'
+    #   uses: apple-actions/upload-testflight-build@v1
+    #   with:
+    #     app-path: 'output.ipa'
+    #     issuer-id: ${{ secrets.APPSTORE_ISSUER_ID }}
+    #     api-key-id: ${{ secrets.APPSTORE_API_KEY_ID }}
+    #     api-private-key: ${{ secrets.APPSTORE_API_PRIVATE_KEY }}
