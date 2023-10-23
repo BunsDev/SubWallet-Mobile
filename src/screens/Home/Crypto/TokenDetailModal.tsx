@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Number, SwModal, Typography } from 'components/design-system-ui';
 import { StyleSheet, View } from 'react-native';
 import { TokenBalanceItemType } from 'types/balance';
@@ -8,13 +8,37 @@ import { useSubWalletTheme } from 'hooks/useSubWalletTheme';
 import { FontMedium, FontSemiBold } from 'styles/sharedStyles';
 import i18n from 'utils/i18n/i18n';
 import { SWModalRefProps } from 'components/design-system-ui/modal/ModalBaseV2';
+import { SwTab } from 'components/design-system-ui/tab';
+import { AccountTokenDetail } from 'components/AccountTokenDetail';
+import { useSelector } from 'react-redux';
+import { RootState } from 'stores/index';
 
-type ItemType = {
+export type ItemType = {
   symbol: string;
   label: string;
   key: string;
   value: BigN;
 };
+
+export type TokenDetailsTab = {
+  label: string;
+  onPress: () => void;
+  value: 'tokenDetails' | 'accountDetails';
+  disabled?: boolean;
+};
+
+const tokenDetailTabs: TokenDetailsTab[] = [
+  {
+    label: 'Token details',
+    onPress: () => {},
+    value: 'tokenDetails',
+  },
+  {
+    label: 'Account details',
+    onPress: () => {},
+    value: 'accountDetails',
+  },
+];
 
 export interface Props {
   modalVisible: boolean;
@@ -30,6 +54,7 @@ export const TokenDetailModal = ({ modalVisible, currentTokenInfo, tokenBalanceM
   const theme = useSubWalletTheme().swThemes;
   const _style = createStyleSheet(theme);
   const modalBaseV2Ref = useRef<SWModalRefProps>(null);
+  const { isAllAccount } = useSelector((state: RootState) => state.accountState);
   const items: ItemType[] = useMemo(() => {
     const symbol = currentTokenInfo?.symbol || '';
     const balanceInfo = currentTokenInfo ? tokenBalanceMap[currentTokenInfo.slug] : undefined;
@@ -50,6 +75,11 @@ export const TokenDetailModal = ({ modalVisible, currentTokenInfo, tokenBalanceM
     ];
   }, [currentTokenInfo, tokenBalanceMap]);
   const onChangeModalVisible = () => modalBaseV2Ref?.current?.close();
+  const [selectedTab, setSelectedTab] = useState<'tokenDetails' | 'accountDetails'>('tokenDetails');
+
+  const _onSelectType = (value: string) => {
+    setSelectedTab(value as 'tokenDetails' | 'accountDetails');
+  };
 
   return (
     <SwModal
@@ -58,26 +88,45 @@ export const TokenDetailModal = ({ modalVisible, currentTokenInfo, tokenBalanceM
       modalBaseV2Ref={modalBaseV2Ref}
       modalVisible={modalVisible}
       modalTitle={i18n.header.tokenDetails}
+      onChangeModalVisible={() => setSelectedTab('tokenDetails')}
       onBackButtonPress={onChangeModalVisible}>
-      <View style={_style.blockContainer}>
-        {items.map(item => (
-          <View key={item.key} style={_style.row}>
-            <Typography.Text style={{ ...FontSemiBold, color: theme.colorTextLight1 }}>{item.label}</Typography.Text>
+      <>
+        {isAllAccount && (
+          <SwTab
+            tabs={tokenDetailTabs}
+            onSelectType={_onSelectType}
+            tabType={'tokenDetail'}
+            selectedValue={selectedTab}
+          />
+        )}
+        {selectedTab === 'tokenDetails' ? (
+          <View style={_style.blockContainer}>
+            {items.map(item => (
+              <View key={item.key} style={_style.row}>
+                <Typography.Text style={{ ...FontSemiBold, color: theme.colorTextLight1 }}>
+                  {item.label}
+                </Typography.Text>
 
-            <Number
-              style={_style.value}
-              textStyle={{ ...FontMedium }}
-              decimal={0}
-              decimalOpacity={0.45}
-              intOpacity={0.85}
-              size={14}
-              suffix={item.symbol}
-              unitOpacity={0.85}
-              value={item.value}
-            />
+                <Number
+                  style={_style.value}
+                  textStyle={{ ...FontMedium }}
+                  decimal={0}
+                  decimalOpacity={0.45}
+                  intOpacity={0.85}
+                  size={14}
+                  suffix={item.symbol}
+                  unitOpacity={0.85}
+                  value={item.value}
+                />
+              </View>
+            ))}
           </View>
-        ))}
-      </View>
+        ) : (
+          <>
+            <AccountTokenDetail items={items} />
+          </>
+        )}
+      </>
     </SwModal>
   );
 };
